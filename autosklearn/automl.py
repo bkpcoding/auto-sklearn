@@ -2,6 +2,9 @@
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union, cast
 
 import copy
+from logging import warning
+import distro
+import warnings
 import io
 import json
 import logging.handlers
@@ -348,7 +351,7 @@ class AutoML(BaseEstimator):
                 processes=False,
                 threads_per_worker=1,
                 # We use the temporal directory to save the
-                # dask workers, because deleting workers
+                # dask workers, because deleting workers takes
                 # more time than deleting backend directories
                 # This prevent an error saying that the worker
                 # file was deleted, so the client could not close
@@ -562,7 +565,7 @@ class AutoML(BaseEstimator):
         #   "multiclass" be mean either REGRESSION or MULTICLASS_CLASSIFICATION,
         #   and so this is where the subclasses are used to determine which.
         #   However, this could also be deduced from the `is_classification`
-        #   paramaeter.
+        #   parameter.
         #
         #   In the future, there is little need for the subclasses of `AutoML`
         #   and no need for the `task` parameter. The extra functionality
@@ -1482,13 +1485,12 @@ class AutoML(BaseEstimator):
         ensemble_size=None,
     ):
         # AutoSklearn does not handle sparse y for now
+        if not ensemble_size > 0:
+            raise ValueError("ensemble_size must be greater than 0 for fit_ensemble") 
         y = convert_if_sparse(y)
-
-        if self._resampling_strategy in ["partial-cv", "partial-cv-iterative-fit"]:
-            raise ValueError(
-                "Cannot call fit_ensemble with resampling "
-                "strategy %s." % self._resampling_strategy
-            )
+        if self._resampling_strategy in ['partial-cv', 'partial-cv-iterative-fit']:
+            raise ValueError('Cannot call fit_ensemble with resampling '
+                             'strategy %s.' % self._resampling_strategy)
 
         if self._logger is None:
             self._logger = self._get_logger(dataset_name)
@@ -1972,8 +1974,20 @@ class AutoML(BaseEstimator):
         Dict(int, Any) : dictionary of length = number of models in the ensemble
             A dictionary of models in the ensemble, where ``model_id`` is the key.
 
-        """  # noqa: E501
-        ensemble_dict = {}
+        """
+
+        ensemble_dict = {} 
+
+        #check for ensemble_size == 0 
+        if self._ensemble_size == 0:
+            warnings.warn("No models in the ensemble. Kindly check the ensemble size.")
+            return ensemble_dict
+
+        #check for condition when ensemble_size > 0 but there is no ensemble to load from
+        if self.ensemble_ is None:
+            warnings.warn('No ensemble found. Returning empty dictionary.')
+            return ensemble_dict
+
 
         def has_key(rv, key):
             return rv.additional_info and key in rv.additional_info

@@ -1188,3 +1188,64 @@ def test_fit_performs_dataset_compression(
     auto.fit(X, y, only_return_configuration_space=True)
 
     assert mock_reduce_dataset.called
+@pytest.mark.parametrize("task, y", [
+    (BINARY_CLASSIFICATION, np.asarray(
+        9999 * [0] + 1 * [1]
+    )),
+    (MULTICLASS_CLASSIFICATION, np.asarray(
+        4999 * [1] + 4999 * [2] + 1 * [3] + 1 * [4]
+    )),
+    (MULTILABEL_CLASSIFICATION, np.asarray(
+        4999 * [[0, 1, 1]] + 4999 * [[1, 1, 0]] + 1 * [[1, 0, 1]] + 1 * [[0, 0, 0]]
+    ))
+])
+def test_subsample_classification_unique_labels_stay_in_training_set(task, y):
+    n_samples = 10000
+    X = np.random.random(size=(n_samples, 3))
+    memory_limit = 1  # Force subsampling
+    mock = unittest.mock.Mock()
+
+    # Make sure our test assumptions are correct
+    assert len(y) == n_samples, "Ensure tests are correctly setup"
+
+    values, counts = np.unique(y, axis=0, return_counts=True)
+    unique_labels = [value for value, count in zip(values, counts) if count == 1]
+    assert len(unique_labels), "Ensure we have unique labels in the test"
+
+    _, y_sampled = AutoML.subsample_if_too_large(X, y,
+                                                 logger=mock,
+                                                 seed=1,
+                                                 memory_limit=memory_limit,
+                                                 task=task)
+
+    assert len(y_sampled) <= len(y), \
+        "Ensure sampling took place"
+    assert all(label in y_sampled for label in unique_labels), \
+        "All unique labels present in the return sampled set"
+
+def test_ensemble_size_zero(self):
+    X_train, Y_train, X_test, Y_test = putil.get_dataset('iris')
+    automl = autosklearn.automl.AutoML(
+        seed=0,
+        time_left_for_this_task=30,
+        per_run_time_limit=5,
+        metric=accuracy,
+        ensemble_size=0
+    )
+    automl.fit(X_train, Y_train, task=MULTICLASS_CLASSIFICATION)
+    with pytest.raises(ValueError):
+        automl.fit_ensemble(Y_test, ensemble_size=0)
+            
+def test_empty_dict_in_show_models(self):
+    X_train, Y_train, X_test, Y_test = putil.get_dataset('iris')
+    automl = autosklearn.automl.AutoMLClassifier(
+        seed=0,
+        time_left_for_this_task=30,
+        per_run_time_limit=5,
+        metric=accuracy,
+        ensemble_size=0
+    )
+    automl.fit(X_train, Y_train)
+    assert automl.show_models() == {}
+
+
