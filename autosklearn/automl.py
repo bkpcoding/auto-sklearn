@@ -1915,11 +1915,6 @@ class AutoML(BaseEstimator):
             warnings.warn("No models in the ensemble. Kindly check the ensemble size.")
             return ensemble_dict
 
-        #check if autosklearn has been fitted. If not raise a RuntimeError
-        self._load_models()
-        if self.models_ is None or len(self.models_) == 0:
-            raise RuntimeError('You need to fit the AutoSklearnRegressor first.')
-
         #check for condition when ensemble_size > 0 but there is no ensemble to load from
         if self.ensemble_ is None:
             warnings.warn('No ensemble found. Returning empty dictionary.')
